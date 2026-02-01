@@ -39,7 +39,8 @@ go install github.com/raojinlin/localcinema@latest
 
 **Docker**
 ```bash
-docker run -v ~/Movies:/videos -p 8080:8080 ghcr.io/raojinlin/localcinema
+docker build -t localcinema .
+docker run -v ~/Movies:/videos -p 8080:8080 localcinema
 ```
 
 **二进制下载**
