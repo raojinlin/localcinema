@@ -33,6 +33,7 @@ brews:
   - repository:
       owner: raojinlin
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://github.com/raojinlin/localcinema"
     description: "Lightweight LAN video streaming server"
     license: "MIT"
