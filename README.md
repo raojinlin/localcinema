@@ -2,6 +2,11 @@
 
 轻量级家庭影院服务器。一个命令启动，手机、平板、电脑打开浏览器即可观看本地视频。
 
+## 截图
+
+![首页](static/ScreenShot_index.png)
+![播放页](static/ScreenShot_play_page.png)
+
 ## 功能
 
 - **全格式支持** — MP4 直接播放，MKV / AVI / MOV / WebM / M4V / WMV / FLV 自动 HLS 转码
