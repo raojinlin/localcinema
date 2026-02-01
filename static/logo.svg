@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square body -->
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#g)"/>
+
+  <!-- Film perforations - left -->
+  <rect x="56" y="100" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+  <rect x="56" y="180" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+  <rect x="56" y="260" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+  <rect x="56" y="340" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+
+  <!-- Film perforations - right -->
+  <rect x="428" y="100" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+  <rect x="428" y="180" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+  <rect x="428" y="260" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+  <rect x="428" y="340" width="28" height="40" rx="6" fill="#09090b" opacity="0.35"/>
+
+  <!-- Inner screen -->
+  <rect x="112" y="112" width="288" height="288" rx="40" fill="#09090b" opacity="0.25"/>
+
+  <!-- Play triangle -->
+  <path d="M224 176 L224 336 L344 256 Z" fill="#ffffff"/>
+</svg>

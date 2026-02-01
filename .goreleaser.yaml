@@ -1,0 +1,38 @@
+version: 2
+
+builds:
+  - binary: localcinema
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - format_overrides:
+      - goos: darwin
+        format: zip
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: raojinlin
+    name: localcinema
+
+brews:
+  - repository:
+      owner: raojinlin
+      name: homebrew-tap
+    homepage: "https://github.com/raojinlin/localcinema"
+    description: "Lightweight LAN video streaming server"
+    license: "MIT"
