@@ -224,7 +224,7 @@ func getOrStartHLS(filePath string) (*HLSJob, error) {
 	var args []string
 	if canBrowserPlayCodec(codec) {
 		log.Printf("[HLS] %s: H.264 copy 模式", fileName)
-		args = append([]string{"-i", filePath,
+		args = append([]string{"-loglevel", "error", "-i", filePath,
 			"-c:v", "copy",
 			"-bsf:v", "h264_mp4toannexb", // H.264 -> Annex B 格式，ts 容器必须
 		}, commonArgs...)
@@ -237,7 +237,7 @@ func getOrStartHLS(filePath string) (*HLSJob, error) {
 			log.Printf("[HLS] %s: %s -> H.264 转码 (软编码)", fileName, codec)
 			videoArgs = []string{"-c:v", "libx264", "-preset", "fast", "-b:v", "4M"}
 		}
-		args = append([]string{"-i", filePath}, videoArgs...)
+		args = append([]string{"-loglevel", "error", "-i", filePath}, videoArgs...)
 		args = append(args, "-force_key_frames", "expr:gte(t,n_forced*2)")
 		args = append(args, commonArgs...)
 	}
@@ -258,16 +258,12 @@ func getOrStartHLS(filePath string) (*HLSJob, error) {
 
 	go func() {
 		defer close(job.Done)
-		output, err := cmd.CombinedOutput()
+		// 丢弃 stdout/stderr，避免内存堆积（已通过 -loglevel error 限制输出）
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		err := cmd.Run()
 		if err != nil {
 			log.Printf("[HLS] %s: ffmpeg 退出: %v", fileName, err)
-			if len(output) > 0 {
-				s := string(output)
-				if len(s) > 500 {
-					s = s[len(s)-500:]
-				}
-				log.Printf("[HLS] %s: 输出:\n%s", fileName, s)
-			}
 			// 转码失败，清理不完整的缓存
 			os.RemoveAll(cacheDir)
 		} else {
