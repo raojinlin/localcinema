@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func main() {
@@ -52,6 +54,12 @@ func main() {
 	if ips := getLocalIPs(); len(ips) > 0 {
 		for _, ip := range ips {
 			fmt.Printf("手机访问: http://%s:%d\n", ip, *port)
+		}
+		// 用第一个 IP 生成二维码
+		url := fmt.Sprintf("http://%s:%d", ips[0], *port)
+		qr, err := qrcode.New(url, qrcode.Medium)
+		if err == nil {
+			fmt.Println(qr.ToSmallString(false))
 		}
 	}
 
