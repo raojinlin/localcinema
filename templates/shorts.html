@@ -91,6 +91,7 @@
             background: linear-gradient(transparent, rgba(0,0,0,0.75));
             pointer-events: none;
             z-index: 15;
+            transition: left 0.15s ease, right 0.15s ease;
         }
         [data-theme="light"] .bottom-overlay {
             background: linear-gradient(transparent, rgba(0,0,0,0.45));
@@ -521,6 +522,7 @@
                     video.play().catch(function() {});
                     activeVideo = video;
                     activeItem = entry.target;
+                    positionOverlay(entry.target);
 
                     // Manage sources for nearby videos
                     var items = container.querySelectorAll('.short-item');
@@ -565,6 +567,92 @@
             return m + ':' + (s < 10 ? '0' : '') + s;
         }
 
+        // Compute the actual rendered rectangle of a video within its container
+        // accounting for object-fit: contain
+        function getVideoRect(video) {
+            var vw = video.videoWidth;
+            var vh = video.videoHeight;
+            if (!vw || !vh) return null;
+
+            var containerRect = video.getBoundingClientRect();
+            var cw = containerRect.width;
+            var ch = containerRect.height;
+            if (!cw || !ch) return null;
+
+            var videoRatio = vw / vh;
+            var containerRatio = cw / ch;
+            var renderW, renderH;
+
+            if (videoRatio > containerRatio) {
+                // Wide video: width fills container, letterbox top/bottom
+                renderW = cw;
+                renderH = cw / videoRatio;
+            } else {
+                // Tall video: height fills container, pillarbox left/right
+                renderH = ch;
+                renderW = ch * videoRatio;
+            }
+
+            var x = (cw - renderW) / 2;
+            var y = (ch - renderH) / 2;
+
+            return { x: x, y: y, width: renderW, height: renderH };
+        }
+
+        // Position the .bottom-overlay relative to the video's actual rendered area.
+        // When there's enough black bar below the video, place controls there (top positioning).
+        // Otherwise fall back to the default gradient overlay at the bottom.
+        function positionOverlay(item) {
+            var video = item.querySelector('video');
+            var overlay = item.querySelector('.bottom-overlay');
+            if (!video || !overlay) return;
+
+            var rect = getVideoRect(video);
+            if (!rect) {
+                // Video not loaded — reset to default
+                overlay.style.top = '';
+                overlay.style.bottom = '0';
+                overlay.style.left = '0';
+                overlay.style.right = '0';
+                overlay.style.paddingTop = '';
+                overlay.style.background = '';
+                return;
+            }
+
+            var containerRect = video.getBoundingClientRect();
+            var bottomBlackBar = containerRect.height - (rect.y + rect.height);
+            var overlayWidth = Math.max(rect.width, 280);
+            var leftOffset = (containerRect.width - overlayWidth) / 2;
+
+            overlay.style.left = leftOffset + 'px';
+            overlay.style.right = leftOffset + 'px';
+
+            var isLandscape = video.videoWidth > video.videoHeight;
+            if (isLandscape && bottomBlackBar > 80) {
+                // Landscape video with black bar below — place controls there
+                overlay.style.top = (rect.y + rect.height) + 'px';
+                overlay.style.bottom = '0';
+                overlay.style.paddingTop = '8px';
+                overlay.style.background = 'rgba(0,0,0,0.5)';
+            } else {
+                // Video fills screen (or nearly) — original gradient overlay
+                overlay.style.top = '';
+                overlay.style.bottom = '0';
+                overlay.style.paddingTop = '';
+                overlay.style.background = '';
+            }
+        }
+
+        // Reposition overlay for all visible items
+        function repositionAllOverlays() {
+            container.querySelectorAll('.short-item').forEach(function(item) {
+                var video = item.querySelector('video');
+                if (video && video.videoWidth) {
+                    positionOverlay(item);
+                }
+            });
+        }
+
         // Click to toggle play/pause + control buttons + seekable progress bar
         function setupClickHandler(item) {
             var video = item.querySelector('video');
@@ -602,6 +690,11 @@
             }
             video.addEventListener('timeupdate', updateTime);
             video.addEventListener('loadedmetadata', updateTime);
+
+            // Position overlay when video dimensions become available
+            video.addEventListener('loadedmetadata', function() {
+                positionOverlay(item);
+            });
 
             // Tap video to toggle play/pause + unmute
             video.addEventListener('click', function(e) {
@@ -883,8 +976,14 @@
                 exitIcon.style.display = 'none';
             }
         }
-        document.addEventListener('fullscreenchange', updateFullscreenIcon);
-        document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+        document.addEventListener('fullscreenchange', function() {
+            updateFullscreenIcon();
+            repositionAllOverlays();
+        });
+        document.addEventListener('webkitfullscreenchange', function() {
+            updateFullscreenIcon();
+            repositionAllOverlays();
+        });
 
         // Get the currently visible video element
         function getActiveVideo() {
@@ -922,6 +1021,13 @@
             btn.addEventListener('click', function() {
                 exitFullscreen();
             });
+        });
+
+        // Debounced resize handler to reposition overlays on window/orientation change
+        var resizeTimer = null;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(repositionAllOverlays, 100);
         });
 
         initItems();
