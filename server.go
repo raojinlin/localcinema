@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -18,6 +19,25 @@ type IndexData struct {
 	PageSize   int
 	Total      int
 	TotalPages int
+}
+
+type APIVideoResponse struct {
+	Videos     []APIVideo `json:"videos"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"pageSize"`
+	Total      int        `json:"total"`
+	TotalPages int        `json:"totalPages"`
+}
+
+type APIVideo struct {
+	Name        string       `json:"name"`
+	RelPath     string       `json:"relPath"`
+	Size        int64        `json:"size"`
+	SizeStr     string       `json:"sizeStr"`
+	Duration    string       `json:"duration"`
+	DurationSec float64      `json:"durationSec"`
+	DirectPlay  bool         `json:"directPlay"`
+	Meta        *DirMetadata `json:"meta,omitempty"`
 }
 
 //go:embed templates/*.html
@@ -48,6 +68,8 @@ func (s *Server) ListenAndServe(addr string) error {
 	mux.HandleFunc("/video", s.handleVideo)
 	mux.HandleFunc("/hls/", s.handleHLS)
 	mux.HandleFunc("/thumb", s.handleThumb)
+	mux.HandleFunc("/shorts", s.handleShorts)
+	mux.HandleFunc("/api/videos", s.handleAPIVideos)
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
 	return http.ListenAndServe(addr, logMiddleware(mux))
 }
@@ -182,6 +204,11 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	name := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if meta := readDirMetadata(filepath.Dir(fullPath)); meta != nil && meta.Title != "" {
+		name = meta.Title
+	}
+
 	data := struct {
 		Name    string
 		File    string
@@ -189,7 +216,7 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		HLSKey  string
 		Related []VideoFile
 	}{
-		Name:    strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)),
+		Name:    name,
 		File:    file,
 		UseHLS:  useHLS,
 		Related: related,
@@ -324,4 +351,105 @@ func (s *Server) isValidPath(relPath string) bool {
 
 	ext := strings.ToLower(filepath.Ext(cleaned))
 	return videoExts[ext]
+}
+
+func (s *Server) handleShorts(w http.ResponseWriter, r *http.Request) {
+	videos, err := ScanVideos(s.videoDir)
+	if err != nil {
+		http.Error(w, "扫描视频目录失败", http.StatusInternalServerError)
+		return
+	}
+
+	var direct []VideoFile
+	for _, v := range videos {
+		if v.DirectPlay {
+			direct = append(direct, v)
+		}
+	}
+
+	// Initial page: first 5 direct-play videos
+	limit := 5
+	if len(direct) < limit {
+		limit = len(direct)
+	}
+
+	data := struct {
+		Videos []VideoFile
+		Total  int
+	}{
+		Videos: direct[:limit],
+		Total:  len(direct),
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := templates.ExecuteTemplate(w, "shorts.html", data); err != nil {
+		log.Printf("模板渲染错误: %v", err)
+	}
+}
+
+func (s *Server) handleAPIVideos(w http.ResponseWriter, r *http.Request) {
+	videos, err := ScanVideos(s.videoDir)
+	if err != nil {
+		http.Error(w, "扫描视频目录失败", http.StatusInternalServerError)
+		return
+	}
+
+	// Filter direct-play only if requested
+	if r.URL.Query().Get("direct") == "1" {
+		var filtered []VideoFile
+		for _, v := range videos {
+			if v.DirectPlay {
+				filtered = append(filtered, v)
+			}
+		}
+		videos = filtered
+	}
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
+	if size <= 0 {
+		size = 20
+	}
+	total := len(videos)
+	totalPages := (total + size - 1) / size
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	start := (page - 1) * size
+	end := start + size
+	if end > total {
+		end = total
+	}
+
+	apiVideos := make([]APIVideo, 0, end-start)
+	for _, v := range videos[start:end] {
+		apiVideos = append(apiVideos, APIVideo{
+			Name:        v.Name,
+			RelPath:     v.RelPath,
+			Size:        v.Size,
+			SizeStr:     v.SizeStr,
+			Duration:    v.Duration,
+			DurationSec: v.DurationSec,
+			DirectPlay:  v.DirectPlay,
+			Meta:        v.Meta,
+		})
+	}
+
+	resp := APIVideoResponse{
+		Videos:     apiVideos,
+		Page:       page,
+		PageSize:   size,
+		Total:      total,
+		TotalPages: totalPages,
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(resp)
 }

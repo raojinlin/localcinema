@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -23,16 +24,34 @@ var videoExts = map[string]bool{
 	".flv":  true,
 }
 
+type DirMetadata struct {
+	Title       string   `json:"title"`
+	Source      string   `json:"source"`
+	Description string   `json:"description"`
+	Keywords    []string `json:"keywords"`
+}
+
 type VideoFile struct {
-	Name     string
-	RelPath  string
-	Size     int64
-	SizeStr  string
-	Duration string // "1:23:45" 格式
+	Name        string
+	RelPath     string
+	Size        int64
+	SizeStr     string
+	Duration    string // "1:23:45" 格式
+	DurationSec float64
+	DirectPlay  bool
+	Meta        *DirMetadata
+}
+
+// directPlayExts are formats that browsers can play natively without HLS transcoding.
+var directPlayExts = map[string]bool{
+	".mp4": true,
+	".m4v": true,
 }
 
 func ScanVideos(root string) ([]VideoFile, error) {
 	var videos []VideoFile
+	metaCache := map[string]*DirMetadata{}
+	metaChecked := map[string]bool{}
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -51,12 +70,28 @@ func ScanVideos(root string) ([]VideoFile, error) {
 		if videoExts[ext] {
 			rel, _ := filepath.Rel(root, path)
 			name := strings.TrimSuffix(info.Name(), filepath.Ext(info.Name()))
+
+			dir := filepath.Dir(path)
+			if !metaChecked[dir] {
+				metaChecked[dir] = true
+				metaCache[dir] = readDirMetadata(dir)
+			}
+			meta := metaCache[dir]
+
+			if meta != nil && meta.Title != "" {
+				name = meta.Title
+			}
+
+			dur := getDuration(path)
 			videos = append(videos, VideoFile{
-				Name:     name,
-				RelPath:  rel,
-				Size:     info.Size(),
-				SizeStr:  formatSize(info.Size()),
-				Duration: getDuration(path),
+				Name:        name,
+				RelPath:     rel,
+				Size:        info.Size(),
+				SizeStr:     formatSize(info.Size()),
+				Duration:    dur,
+				DurationSec: parseDurationStr(dur),
+				DirectPlay:  directPlayExts[ext],
+				Meta:        meta,
 			})
 		}
 		return nil
@@ -67,6 +102,40 @@ func ScanVideos(root string) ([]VideoFile, error) {
 	})
 
 	return videos, err
+}
+
+// readDirMetadata reads metadata.json from the given directory.
+// Returns nil if the file doesn't exist or can't be parsed.
+func readDirMetadata(dir string) *DirMetadata {
+	data, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	if err != nil {
+		return nil
+	}
+	var meta DirMetadata
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return nil
+	}
+	return &meta
+}
+
+// parseDurationStr converts "H:MM:SS" or "M:SS" format to seconds.
+func parseDurationStr(s string) float64 {
+	if s == "" {
+		return 0
+	}
+	parts := strings.Split(s, ":")
+	switch len(parts) {
+	case 2:
+		m, _ := strconv.ParseFloat(parts[0], 64)
+		sec, _ := strconv.ParseFloat(parts[1], 64)
+		return m*60 + sec
+	case 3:
+		h, _ := strconv.ParseFloat(parts[0], 64)
+		m, _ := strconv.ParseFloat(parts[1], 64)
+		sec, _ := strconv.ParseFloat(parts[2], 64)
+		return h*3600 + m*60 + sec
+	}
+	return 0
 }
 
 // getDuration 获取视频时长，优先读缓存
