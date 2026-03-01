@@ -197,41 +197,14 @@
         }
         .btn-secondary:hover { border-color: #52525b; }
 
-        /* Terminal mockup */
-        .terminal {
+        /* Hero banner */
+        .hero-banner {
             margin-top: 56px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
             width: 100%;
-            max-width: 540px;
-            text-align: left;
-            overflow: hidden;
+            max-width: 800px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
         }
-        .terminal-bar {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--border);
-        }
-        .terminal-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #3f3f46;
-        }
-        .terminal-body {
-            padding: 16px 18px;
-            font-family: "SF Mono", "Fira Code", monospace;
-            font-size: 13px;
-            line-height: 1.8;
-            color: var(--text2);
-        }
-        .terminal-body .cmd { color: var(--text); }
-        .terminal-body .prompt { color: var(--accent2); }
-        .terminal-body .out { color: #71717a; }
-        .terminal-body .url { color: #22d3ee; }
 
         /* Features */
         .features {
@@ -454,21 +427,7 @@
         <a class="btn-primary" href="#how">快速开始</a>
         <a class="btn-secondary" href="https://github.com/raojinlin/localcinema">查看源码</a>
     </div>
-    <div class="terminal">
-        <div class="terminal-bar">
-            <div class="terminal-dot"></div>
-            <div class="terminal-dot"></div>
-            <div class="terminal-dot"></div>
-        </div>
-        <div class="terminal-body">
-            <div><span class="prompt">$</span> <span class="cmd">localcinema -dir ~/Movies</span></div>
-            <div class="out">LocalCinema 服务器启动中...</div>
-            <div class="out">视频目录: /Users/you/Movies</div>
-            <div class="out">ffmpeg: ~/.cache/localcinema/bin/ffmpeg</div>
-            <div class="out">ffprobe: ~/.cache/localcinema/bin/ffprobe</div>
-            <div class="out">手机访问: <span class="url">http://192.168.1.42:8080</span></div>
-        </div>
-    </div>
+    <img class="hero-banner" src="static/hero-banner.png" alt="LocalCinema 产品预览">
 </section>
 
 <!-- Features -->
