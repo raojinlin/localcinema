@@ -242,6 +242,103 @@
             display: none;
         }
 
+        /* 面包屑导航 */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2px;
+            flex-shrink: 0;
+            max-width: 60%;
+        }
+        .bc-item { font-size: 13px; padding: 2px 4px; border-radius: 4px; white-space: nowrap; }
+        .bc-link {
+            color: var(--text2);
+            text-decoration: none;
+        }
+        .bc-link:hover { color: var(--text); background: var(--hover); }
+        .bc-current { color: var(--text); font-weight: 500; }
+        .bc-sep { color: var(--text4); font-size: 13px; user-select: none; }
+
+        /* ── 文件浏览器 ── */
+        .fb-crumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2px;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .fb-crumb-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text2); font-size: 13px;
+            padding: 3px 6px; border-radius: 4px;
+        }
+        .fb-crumb-btn:hover { color: var(--text); background: var(--hover); }
+        .fb-crumb-sep { color: var(--text4); padding: 0 1px; font-size: 12px; }
+        .fb-crumb-cur { color: var(--text); font-weight: 500; padding: 3px 6px; font-size: 13px; }
+
+        .fb-action-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .fb-shorts-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px;
+            background: rgba(225,29,72,0.08);
+            border: 1px solid rgba(225,29,72,0.25);
+            border-radius: 20px;
+            color: #e11d48; font-size: 13px; font-weight: 500;
+            text-decoration: none; cursor: pointer;
+        }
+        .fb-shorts-btn:hover { background: rgba(225,29,72,0.16); }
+        .fb-shorts-btn svg { width: 13px; height: 13px; }
+
+        .fb-row {
+            display: flex; align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--bg2);
+            cursor: pointer; color: var(--text); text-decoration: none;
+        }
+        .fb-row:active { background: var(--hover); }
+        .fb-icon {
+            width: 40px; height: 40px;
+            background: var(--bg2); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; margin-right: 12px; color: var(--text2);
+        }
+        .fb-icon svg { width: 20px; height: 20px; }
+        .fb-info { flex: 1; min-width: 0; }
+        .fb-name {
+            font-size: 15px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .fb-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+        .fb-chev { color: var(--text4); margin-left: 8px; flex-shrink: 0; }
+        .fb-chev svg { width: 16px; height: 16px; display: block; }
+        .fb-thumb-wrap {
+            width: 96px; height: 54px;
+            position: relative; flex-shrink: 0; margin-right: 12px;
+        }
+        .fb-thumb {
+            width: 100%; height: 100%;
+            object-fit: cover; border-radius: 6px; background: var(--thumb-bg); display: block;
+        }
+        .fb-dur {
+            position: absolute; bottom: 3px; right: 3px;
+            background: rgba(0,0,0,0.75); color: #ddd;
+            font-size: 10px; padding: 1px 4px; border-radius: 3px; line-height: 1.4;
+        }
+        .folder-loading { padding: 40px; text-align: center; color: var(--text3); font-size: 14px; }
+        @media (min-width: 768px) {
+            .fb-row { padding: 10px 24px; border-radius: 8px; border-bottom: none; margin: 0 8px; }
+            .fb-row:hover { background: var(--hover); }
+            .fb-crumb { padding: 8px 24px; }
+            .fb-action-bar { padding: 8px 24px; }
+        }
+
         .container {
             max-width: 960px;
             margin: 0 auto;
@@ -340,9 +437,15 @@
                 <p><span id="count">{{.Total}}</span> 个视频</p>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
+                {{if .Folder}}
+                <a class="theme-btn" href="/shorts?folder={{.Folder}}" title="文件夹 Shorts" style="text-decoration:none;color:#e11d48">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/><line x1="19" y1="3" x2="19" y2="21"/></svg>
+                </a>
+                {{else}}
                 <a class="theme-btn" href="/shorts" title="Shorts" style="text-decoration:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/><line x1="19" y1="3" x2="19" y2="21"/></svg>
                 </a>
+                {{end}}
                 <button class="theme-btn" id="theme-toggle" title="切换主题">
                     <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
                     <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
@@ -354,10 +457,28 @@
                     <button class="view-btn active" data-view="list" title="列表">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     </button>
+                    {{if eq .Folder ""}}
+                    <button class="view-btn" data-view="folders" title="文件夹">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                    </button>
+                    {{end}}
                 </div>
             </div>
         </div>
         <div class="toolbar">
+            {{if .Breadcrumb}}
+            <nav class="breadcrumb">
+                <a class="bc-item bc-link" href="/">全部</a>
+                {{range $i, $item := .Breadcrumb}}
+                <span class="bc-sep">/</span>
+                {{if eq $i (subtract (len $.Breadcrumb) 1)}}
+                <span class="bc-item bc-current">{{$item.Name}}</span>
+                {{else}}
+                <a class="bc-item bc-link" href="/?folder={{$item.Path}}">{{$item.Name}}</a>
+                {{end}}
+                {{end}}
+            </nav>
+            {{end}}
             <input class="search-box" type="text" placeholder="搜索视频..." id="search">
         </div>
     </header>
@@ -380,13 +501,13 @@
     {{if gt .TotalPages 1}}
     <nav class="pagination">
         {{if gt .Page 1}}
-        <a class="page-btn" href="/?page={{subtract .Page 1}}">上一页</a>
+        <a class="page-btn" href="/?page={{subtract .Page 1}}{{if .Folder}}&folder={{.Folder}}{{end}}">上一页</a>
         {{else}}
         <span class="page-btn disabled">上一页</span>
         {{end}}
         <span class="page-info">{{.Page}} / {{.TotalPages}}</span>
         {{if lt .Page .TotalPages}}
-        <a class="page-btn" href="/?page={{add .Page 1}}">下一页</a>
+        <a class="page-btn" href="/?page={{add .Page 1}}{{if .Folder}}&folder={{.Folder}}{{end}}">下一页</a>
         {{else}}
         <span class="page-btn disabled">下一页</span>
         {{end}}
@@ -422,14 +543,144 @@
         }
 
         // 视图切换
+        var inFolderCtx = {{if .Folder}}true{{else}}false{{end}};
         var btns = document.querySelectorAll('.view-btn');
-        var saved = localStorage.getItem('view') || 'list';
+        var rawSaved = localStorage.getItem('view') || 'list';
+        // 在文件夹过滤页内，不允许恢复文件夹视图（避免把视频列表隐藏掉）
+        var saved = (inFolderCtx && rawSaved === 'folders') ? 'list' : rawSaved;
+        var folderListEl = null; // 文件夹视图容器（懒创建）
+
         function setView(mode) {
-            if (!list) return;
-            list.className = mode;
             btns.forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-view') === mode); });
             localStorage.setItem('view', mode);
+
+            if (mode === 'folders') {
+                if (list) list.style.display = 'none';
+                var pagination = document.querySelector('.pagination');
+                if (pagination) pagination.style.display = 'none';
+                showFolderView();
+                return;
+            }
+            // 恢复列表/网格
+            if (folderListEl) folderListEl.style.display = 'none';
+            var pagination = document.querySelector('.pagination');
+            if (pagination) pagination.style.display = '';
+            if (list) {
+                list.style.display = '';
+                list.className = mode;
+            }
         }
+
+        // 文件夹层级导航栈：[{relPath, name}, ...]
+        var folderNavStack = [];
+        var CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+        var FOLDER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
+
+        function showFolderView() {
+            if (!folderListEl) {
+                folderListEl = document.createElement('div');
+                document.querySelector('.container').appendChild(folderListEl);
+            }
+            folderListEl.style.display = '';
+            folderNavStack = [];
+            renderFolderLevel('');
+        }
+
+        function renderFolderLevel(parent) {
+            folderListEl.innerHTML = '<div class="folder-loading">加载中...</div>';
+            fetch('/api/folders?parent=' + encodeURIComponent(parent))
+                .then(function(r) { return r.json(); })
+                .then(function(data) { renderFolderData(parent, data); })
+                .catch(function() {
+                    folderListEl.innerHTML = '<div class="folder-loading">加载失败</div>';
+                });
+        }
+
+        function renderFolderData(parent, data) {
+            folderListEl.innerHTML = '';
+
+            // ── 面包屑 ────────────────────────────────────────────
+            if (folderNavStack.length > 0) {
+                var crumb = document.createElement('div');
+                crumb.className = 'fb-crumb';
+                var html = '<button class="fb-crumb-btn" data-idx="-1">全部</button>';
+                folderNavStack.forEach(function(entry, i) {
+                    html += '<span class="fb-crumb-sep">›</span>';
+                    if (i < folderNavStack.length - 1) {
+                        html += '<button class="fb-crumb-btn" data-idx="' + i + '">' + escapeHtml(entry.name) + '</button>';
+                    } else {
+                        html += '<span class="fb-crumb-cur">' + escapeHtml(entry.name) + '</span>';
+                    }
+                });
+                crumb.innerHTML = html;
+                crumb.querySelectorAll('.fb-crumb-btn').forEach(function(el) {
+                    el.addEventListener('click', function() {
+                        var idx = parseInt(el.getAttribute('data-idx'));
+                        if (idx === -1) { folderNavStack = []; renderFolderLevel(''); }
+                        else { folderNavStack = folderNavStack.slice(0, idx + 1); renderFolderLevel(folderNavStack[idx].relPath); }
+                    });
+                });
+                folderListEl.appendChild(crumb);
+            }
+
+            // ── Shorts 操作栏 ──────────────────────────────────────
+            if (data.totalDirectPlay > 0) {
+                var bar = document.createElement('div');
+                bar.className = 'fb-action-bar';
+                var shortsHref = '/shorts' + (parent ? '?folder=' + encodeURIComponent(parent) : '');
+                bar.innerHTML = '<a class="fb-shorts-btn" href="' + shortsHref + '">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/><line x1="19" y1="3" x2="19" y2="21"/></svg>' +
+                    data.totalDirectPlay + ' 个视频 Shorts 播放</a>';
+                folderListEl.appendChild(bar);
+            }
+
+            var isEmpty = (!data.folders || data.folders.length === 0) && (!data.videos || data.videos.length === 0);
+            if (isEmpty) {
+                var empty = document.createElement('div');
+                empty.className = 'folder-loading';
+                empty.textContent = '没有内容';
+                folderListEl.appendChild(empty);
+                return;
+            }
+
+            // ── 子目录 ────────────────────────────────────────────
+            (data.folders || []).forEach(function(f) {
+                var row = document.createElement('div');
+                row.className = 'fb-row';
+                var meta = f.count + ' 个视频' + (f.hasChildren ? '，含子目录' : '');
+                row.innerHTML =
+                    '<div class="fb-icon">' + FOLDER_ICON + '</div>' +
+                    '<div class="fb-info"><div class="fb-name">' + escapeHtml(f.name) + '</div><div class="fb-meta">' + meta + '</div></div>' +
+                    '<div class="fb-chev">' + CHEV + '</div>';
+                row.addEventListener('click', function() {
+                    folderNavStack.push({relPath: f.relPath, name: f.name});
+                    renderFolderLevel(f.relPath);
+                });
+                folderListEl.appendChild(row);
+            });
+
+            // ── 当前目录直属视频 ──────────────────────────────────
+            (data.videos || []).forEach(function(v) {
+                var a = document.createElement('a');
+                a.className = 'fb-row';
+                a.href = '/play?file=' + encodeURIComponent(v.relPath);
+                a.innerHTML =
+                    '<div class="fb-thumb-wrap">' +
+                        '<img class="fb-thumb" src="/thumb?file=' + encodeURIComponent(v.relPath) + '" loading="lazy" alt="">' +
+                        (v.duration ? '<span class="fb-dur">' + escapeHtml(v.duration) + '</span>' : '') +
+                    '</div>' +
+                    '<div class="fb-info"><div class="fb-name">' + escapeHtml(v.name) + '</div><div class="fb-meta">' + escapeHtml(v.sizeStr || '') + '</div></div>' +
+                    '<div class="fb-chev">' + CHEV + '</div>';
+                folderListEl.appendChild(a);
+            });
+        }
+
+        function escapeHtml(str) {
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(str));
+            return d.innerHTML;
+        }
+
         setView(saved);
         btns.forEach(function(btn) {
             btn.addEventListener('click', function() { setView(this.getAttribute('data-view')); });

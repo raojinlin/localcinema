@@ -340,6 +340,9 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
         </a>
         <div style="display:flex;gap:8px;align-items:center">
+            <button class="top-theme-btn" id="shuffle-toggle" title="随机播放">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+            </button>
             <button class="top-theme-btn" id="mute-toggle" title="取消静音">
                 <svg class="icon-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
                 <svg class="icon-unmuted" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
@@ -357,66 +360,58 @@
 
     <div class="scroll-indicator" id="scroll-indicator"></div>
 
-    <div class="shorts-container" id="shorts-container">
-        {{range .Videos}}
-        <div class="short-item" data-relpath="{{.RelPath}}">
-            <video
-                src="/video?file={{.RelPath}}"
-                loop
-                muted
-                playsinline
-                webkit-playsinline
-                preload="none"
-                poster="/thumb?file={{.RelPath}}"
-            ></video>
-            <div class="play-overlay">
-                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            </div>
-            <div class="bottom-overlay">
-                <div class="controls-row">
-                    <span class="time-display">0:00 / {{if .Duration}}{{.Duration}}{{else}}0:00{{end}}</span>
-                    <span class="controls-spacer"></span>
-                    <button class="ctrl-btn btn-back" title="后退10秒">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><text x="15" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg>
-                    </button>
-                    <button class="ctrl-btn btn-play" title="播放/暂停">
-                        <svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <svg class="ic-pause" style="display:none" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                    </button>
-                    <button class="ctrl-btn btn-fwd" title="快进10秒">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 19l7-7-7-7"/><text x="9" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg>
-                    </button>
-                    <button class="ctrl-btn btn-fs" title="全屏">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                    </button>
-                </div>
-                <div class="progress-wrap"><div class="progress-track"><div class="progress-fill"></div><div class="progress-handle"></div></div></div>
-                <div class="meta-info">
-                    <div class="meta-title">{{.Name}}</div>
-                    {{if .Meta}}
-                        {{if .Meta.Source}}<div class="meta-source">{{.Meta.Source}}</div>{{end}}
-                        {{if .Meta.Description}}<div class="meta-desc">{{.Meta.Description}}</div>{{end}}
-                        {{if .Meta.Keywords}}
-                        <div class="meta-tags">
-                            {{range .Meta.Keywords}}<span class="meta-tag">#{{.}}</span>{{end}}
-                        </div>
-                        {{end}}
-                    {{end}}
-                </div>
-            </div>
-        </div>
-        {{end}}
+    <div class="loading-more" id="loading-spinner" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;display:none;flex-direction:column;align-items:center;gap:12px;">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="40 20"/></svg>
+        <span style="color:rgba(255,255,255,0.7);font-size:13px">加载中...</span>
     </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+    <div class="shorts-container" id="shorts-container"></div>
 
     <script>
     (function() {
         var container = document.getElementById('shorts-container');
         var totalVideos = {{.Total}};
-        var currentPage = 1;
-        var pageSize = 5;
-        var loading = false;
-        var allLoaded = totalVideos <= pageSize;
+        var currentFolder = {{if .Folder}}"{{.Folder}}"{{else}}""{{end}};
+        var allLoaded = false;
         var hasUnmuted = false;
+
+        // ── 已观看记录 ──────────────────────────────────────────────
+        var WATCHED_KEY = 'lc_watched';
+        var watchedSet = {};
+        try { watchedSet = JSON.parse(localStorage.getItem(WATCHED_KEY) || '{}'); } catch(e) {}
+        function markWatched(relPath) {
+            watchedSet[relPath] = Date.now();
+            try { localStorage.setItem(WATCHED_KEY, JSON.stringify(watchedSet)); } catch(e) {}
+        }
+        function isWatched(relPath) { return !!watchedSet[relPath]; }
+
+        // ── 随机播放 ─────────────────────────────────────────────────
+        var shuffleEnabled = localStorage.getItem('lc_shuffle') === '1';
+        function updateShuffleIcon() {
+            var btn = document.getElementById('shuffle-toggle');
+            if (!btn) return;
+            btn.style.color = shuffleEnabled ? '#e11d48' : '';
+            btn.style.background = shuffleEnabled ? 'rgba(225,29,72,0.25)' : '';
+            btn.title = shuffleEnabled ? '取消随机' : '随机播放';
+        }
+        document.getElementById('shuffle-toggle').addEventListener('click', function() {
+            shuffleEnabled = !shuffleEnabled;
+            localStorage.setItem('lc_shuffle', shuffleEnabled ? '1' : '0');
+            updateShuffleIcon();
+            // 重新加载
+            container.innerHTML = '';
+            allLoaded = false;
+            initShorts();
+        });
+        updateShuffleIcon();
+
+        function shuffleArray(arr) {
+            for (var i = arr.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+            }
+        }
 
         // Theme toggle
         document.getElementById('theme-toggle').addEventListener('click', function() {
@@ -524,12 +519,24 @@
                     activeItem = entry.target;
                     positionOverlay(entry.target);
 
+                    // 播放 3 秒后标记为已看
+                    var relPath = entry.target.getAttribute('data-relpath');
+                    if (relPath && !isWatched(relPath)) {
+                        var watchTimer = setTimeout(function() {
+                            if (activeVideo === video && !video.paused) {
+                                markWatched(relPath);
+                            }
+                        }, 3000);
+                        video._watchTimer = watchTimer;
+                    }
+
                     // Manage sources for nearby videos
                     var items = container.querySelectorAll('.short-item');
                     var idx = Array.prototype.indexOf.call(items, entry.target);
                     if (idx >= 0) manageVideoSources(idx);
                 } else {
                     video.pause();
+                    if (video._watchTimer) { clearTimeout(video._watchTimer); video._watchTimer = null; }
                     var fill = entry.target.querySelector('.progress-fill');
                     if (fill) fill.style.width = '0%';
                     if (activeVideo === video) {
@@ -826,77 +833,126 @@
             }
         }
 
-        // Infinite scroll: load more videos
-        function loadMore() {
-            if (loading || allLoaded) return;
-            loading = true;
+        // ── 创建视频 DOM 元素 ─────────────────────────────────────
+        function createVideoDiv(v) {
+            var div = document.createElement('div');
+            div.className = 'short-item';
+            div.setAttribute('data-relpath', v.relPath);
 
-            var nextPage = currentPage + 1;
-            fetch('/api/videos?direct=1&page=' + nextPage + '&size=' + pageSize)
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    if (!data.videos || data.videos.length === 0) {
-                        allLoaded = true;
-                        return;
-                    }
-                    currentPage = nextPage;
-                    if (currentPage >= data.totalPages) {
-                        allLoaded = true;
-                    }
-
-                    data.videos.forEach(function(v) {
-                        var div = document.createElement('div');
-                        div.className = 'short-item';
-                        div.setAttribute('data-relpath', v.relPath);
-
-                        var metaHtml = '';
-                        if (v.meta) {
-                            if (v.meta.source) metaHtml += '<div class="meta-source">' + escapeHtml(v.meta.source) + '</div>';
-                            if (v.meta.description) metaHtml += '<div class="meta-desc">' + escapeHtml(v.meta.description) + '</div>';
-                            if (v.meta.keywords && v.meta.keywords.length) {
-                                metaHtml += '<div class="meta-tags">';
-                                v.meta.keywords.forEach(function(k) {
-                                    metaHtml += '<span class="meta-tag">#' + escapeHtml(k) + '</span>';
-                                });
-                                metaHtml += '</div>';
-                            }
-                        }
-
-                        div.innerHTML =
-                            '<video data-src="/video?file=' + encodeURIComponent(v.relPath) + '" loop ' + (hasUnmuted ? '' : 'muted ') + 'playsinline webkit-playsinline preload="none" poster="/thumb?file=' + encodeURIComponent(v.relPath) + '"></video>' +
-                            '<div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="#fff"/></svg></div>' +
-                            '<div class="bottom-overlay">' +
-                                '<div class="controls-row">' +
-                                    '<span class="time-display">0:00 / ' + escapeHtml(v.duration || '0:00') + '</span>' +
-                                    '<span class="controls-spacer"></span>' +
-                                    '<button class="ctrl-btn btn-back" title="后退10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><text x="15" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
-                                    '<button class="ctrl-btn btn-play" title="播放/暂停"><svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg><svg class="ic-pause" style="display:none" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>' +
-                                    '<button class="ctrl-btn btn-fwd" title="快进10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 19l7-7-7-7"/><text x="9" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
-                                    '<button class="ctrl-btn btn-fs" title="全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>' +
-                                '</div>' +
-                                '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill"></div><div class="progress-handle"></div></div></div>' +
-                                '<div class="meta-info">' +
-                                    '<div class="meta-title">' + escapeHtml(v.name) + '</div>' +
-                                    metaHtml +
-                                '</div>' +
-                            '</div>';
-
-                        container.appendChild(div);
-                        observer.observe(div);
-                        setupClickHandler(div);
+            var metaHtml = '';
+            if (v.meta) {
+                if (v.meta.source) metaHtml += '<div class="meta-source">' + escapeHtml(v.meta.source) + '</div>';
+                if (v.meta.description) metaHtml += '<div class="meta-desc">' + escapeHtml(v.meta.description) + '</div>';
+                if (v.meta.keywords && v.meta.keywords.length) {
+                    metaHtml += '<div class="meta-tags">';
+                    v.meta.keywords.forEach(function(k) {
+                        metaHtml += '<span class="meta-tag">#' + escapeHtml(k) + '</span>';
                     });
-
-                    updateScrollIndicator();
-                })
-                .catch(function(err) {
-                    console.error('Failed to load more videos:', err);
-                })
-                .finally(function() {
-                    loading = false;
-                });
+                    metaHtml += '</div>';
+                }
+            }
+            div.innerHTML =
+                '<video data-src="/video?file=' + encodeURIComponent(v.relPath) + '" loop ' + (hasUnmuted ? '' : 'muted ') + 'playsinline webkit-playsinline preload="none" poster="/thumb?file=' + encodeURIComponent(v.relPath) + '"></video>' +
+                '<div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="#fff"/></svg></div>' +
+                '<div class="bottom-overlay">' +
+                    '<div class="controls-row">' +
+                        '<span class="time-display">0:00 / ' + escapeHtml(v.duration || '0:00') + '</span>' +
+                        '<span class="controls-spacer"></span>' +
+                        '<button class="ctrl-btn btn-back" title="后退10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><text x="15" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
+                        '<button class="ctrl-btn btn-play" title="播放/暂停"><svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg><svg class="ic-pause" style="display:none" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>' +
+                        '<button class="ctrl-btn btn-fwd" title="快进10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 19l7-7-7-7"/><text x="9" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
+                        '<button class="ctrl-btn btn-fs" title="全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>' +
+                    '</div>' +
+                    '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill"></div><div class="progress-handle"></div></div></div>' +
+                    '<div class="meta-info">' +
+                        '<div class="meta-title">' + escapeHtml(v.name) + '</div>' +
+                        metaHtml +
+                    '</div>' +
+                '</div>';
+            return div;
         }
 
-        // Throttled scroll handler
+        // ── 加载所有视频并初始化 ──────────────────────────────────
+        function buildApiUrl(page, size) {
+            var url = '/api/videos?direct=1&page=' + page + '&size=' + size;
+            if (currentFolder) url += '&folder=' + encodeURIComponent(currentFolder);
+            return url;
+        }
+
+        function initShorts() {
+            var spinner = document.getElementById('loading-spinner');
+            spinner.style.display = 'flex';
+            allLoaded = false;
+
+            // 分批加载所有视频（最多 2000 条）
+            var allVideos = [];
+            var page = 1;
+            var batchSize = 100;
+
+            function fetchNext() {
+                fetch(buildApiUrl(page, batchSize))
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        allVideos = allVideos.concat(data.videos || []);
+                        if (page < data.totalPages && allVideos.length < 2000) {
+                            page++;
+                            fetchNext();
+                        } else {
+                            onAllLoaded(allVideos);
+                        }
+                    })
+                    .catch(function() { onAllLoaded(allVideos); });
+            }
+            fetchNext();
+        }
+
+        function onAllLoaded(allVideos) {
+            // 分离：历史（已看）和队列（未看）
+            var history = [];
+            var queue = [];
+            allVideos.forEach(function(v) {
+                if (isWatched(v.relPath)) history.push(v);
+                else queue.push(v);
+            });
+
+            // 若全部看过，重置为全新播放
+            if (queue.length === 0 && history.length > 0) {
+                queue = history.slice();
+                history = [];
+            }
+
+            // 历史：按观看时间升序（最早看的在最上面）
+            history.sort(function(a, b) { return watchedSet[a.relPath] - watchedSet[b.relPath]; });
+
+            // 队列：可随机
+            if (shuffleEnabled) shuffleArray(queue);
+
+            // 渲染历史（上方），队列（下方）
+            history.forEach(function(v) {
+                var div = createVideoDiv(v);
+                container.appendChild(div);
+            });
+            queue.forEach(function(v) {
+                var div = createVideoDiv(v);
+                container.appendChild(div);
+            });
+
+            var historyCount = history.length;
+
+            // 初始化 observer 和事件
+            initItems();
+
+            // 跳到第一个未看的视频
+            if (historyCount > 0) {
+                container.scrollTop = historyCount * window.innerHeight;
+            }
+
+            allLoaded = true;
+            document.getElementById('loading-spinner').style.display = 'none';
+            updateScrollIndicator();
+        }
+
+        // Throttled scroll handler（已全部加载，无需再 loadMore）
         var scrollTick = false;
         container.addEventListener('scroll', function() {
             if (scrollTick) return;
@@ -904,14 +960,6 @@
             requestAnimationFrame(function() {
                 scrollTick = false;
                 highlightCurrentDot();
-                var items = container.querySelectorAll('.short-item');
-                if (items.length === 0) return;
-                var scrollTop = container.scrollTop;
-                var vh = window.innerHeight;
-                var currentIdx = Math.round(scrollTop / vh);
-                if (currentIdx >= items.length - 2) {
-                    loadMore();
-                }
             });
         });
 
@@ -1030,7 +1078,7 @@
             resizeTimer = setTimeout(repositionAllOverlays, 100);
         });
 
-        initItems();
+        initShorts();
     })();
     </script>
 </body>

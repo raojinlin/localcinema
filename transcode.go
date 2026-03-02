@@ -33,13 +33,17 @@ type HLSJob struct {
 	lastAccess int64        // 最后访问时间（unix 秒）
 }
 
-// InitHLSCache 初始化 HLS 缓存目录
-func InitHLSCache() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
+// InitHLSCache 初始化 HLS 缓存目录。customDir 为空时使用默认路径。
+func InitHLSCache(customDir string) error {
+	if customDir != "" {
+		hlsCacheDir = filepath.Join(customDir, "hls")
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		hlsCacheDir = filepath.Join(home, ".cache", "localcinema", "hls")
 	}
-	hlsCacheDir = filepath.Join(home, ".cache", "localcinema", "hls")
 	if err := os.MkdirAll(hlsCacheDir, 0755); err != nil {
 		return err
 	}

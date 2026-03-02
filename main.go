@@ -17,14 +17,15 @@ func main() {
 
 	dir := flag.String("dir", defaultDir, "视频文件目录")
 	port := flag.Int("port", 8080, "服务器端口")
+	cacheDir := flag.String("cache-dir", "", "缓存目录（默认 ~/.cache/localcinema）")
 	clearCache := flag.Bool("clear-cache", false, "清空 HLS 转码缓存后退出")
 	flag.Parse()
 
 	// 初始化缓存
-	if err := InitHLSCache(); err != nil {
+	if err := InitHLSCache(*cacheDir); err != nil {
 		log.Fatalf("初始化 HLS 缓存失败: %v", err)
 	}
-	if err := InitThumbCache(); err != nil {
+	if err := InitThumbCache(*cacheDir); err != nil {
 		log.Fatalf("初始化封面缓存失败: %v", err)
 	}
 
