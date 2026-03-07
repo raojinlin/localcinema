@@ -71,6 +71,7 @@ localcinema -clear-cache
 |------|--------|------|
 | `-dir` | `~/Movies` | 视频文件目录 |
 | `-port` | `8080` | 服务器监听端口 |
+| `-cache-dir` | `~/.cache/localcinema` | 自定义缓存目录（HLS 转码、封面、ffmpeg 等） |
 | `-clear-cache` | — | 清空 HLS 转码缓存后退出 |
 
 ## ffmpeg
@@ -96,7 +97,7 @@ macOS 下使用 VideoToolbox 硬件加速转码（`h264_videotoolbox`），需�
 
 ## 缓存
 
-所有缓存存储在 `~/.cache/localcinema/`：
+所有缓存默认存储在 `~/.cache/localcinema/`，可通过 `-cache-dir` 参数自定义路径：
 
 | 目录 | 内容 |
 |------|------|
