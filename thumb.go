@@ -27,13 +27,17 @@ var (
 	thumbOnce     sync.Once
 )
 
-// InitThumbCache 初始化封面缓存目录
-func InitThumbCache() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
+// InitThumbCache 初始化封面缓存目录。customDir 为空时使用默认路径。
+func InitThumbCache(customDir string) error {
+	if customDir != "" {
+		thumbCacheDir = filepath.Join(customDir, "thumbs")
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		thumbCacheDir = filepath.Join(home, ".cache", "localcinema", "thumbs")
 	}
-	thumbCacheDir = filepath.Join(home, ".cache", "localcinema", "thumbs")
 	return os.MkdirAll(thumbCacheDir, 0755)
 }
 

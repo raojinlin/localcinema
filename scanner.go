@@ -203,6 +203,16 @@ func formatDuration(secs float64) string {
 	return fmt.Sprintf("%d:%02d", m, s)
 }
 
+// videoFolder 返回 relPath 所在的规范化文件夹路径。
+// 根目录文件返回 ""，子目录文件返回其目录（使用正斜杠）。
+func videoFolder(relPath string) string {
+	dir := filepath.Dir(relPath)
+	if dir == "." {
+		return ""
+	}
+	return filepath.ToSlash(dir)
+}
+
 func formatSize(bytes int64) string {
 	const (
 		MB = 1024 * 1024

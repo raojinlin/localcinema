@@ -324,6 +324,153 @@
             background: #e11d48;
             transform: scale(1.4);
         }
+
+        /* Sidebar mask & panel */
+        .sidebar-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .sidebar-mask.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .sidebar-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 320px;
+            max-width: 75vw;
+            background: #1a1a1a;
+            z-index: 301;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        [data-theme="light"] .sidebar-panel {
+            background: #fff;
+        }
+        .sidebar-panel.open {
+            transform: translateX(0);
+        }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        [data-theme="light"] .sidebar-header {
+            border-bottom-color: rgba(0,0,0,0.1);
+        }
+        .sidebar-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0;
+        }
+        .sidebar-close {
+            background: none;
+            border: none;
+            color: var(--text2);
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sidebar-close svg { width: 20px; height: 20px; }
+        .sidebar-list {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 8px 0;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .sidebar-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        [data-theme="light"] .sidebar-item:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        .sidebar-item.active {
+            background: rgba(225,29,72,0.15);
+            border-left: 3px solid #e11d48;
+            padding-left: 13px;
+        }
+        .sidebar-thumb {
+            width: 80px;
+            height: 56px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #333;
+            flex-shrink: 0;
+        }
+        [data-theme="light"] .sidebar-thumb {
+            background: #e4e4e7;
+        }
+        .sidebar-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .sidebar-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+        }
+        .sidebar-duration {
+            font-size: 12px;
+            color: var(--text3);
+            margin-top: 4px;
+        }
+        .sidebar-section {
+            padding: 12px 16px 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            margin-top: 8px;
+        }
+        [data-theme="light"] .sidebar-section {
+            border-top-color: rgba(0,0,0,0.08);
+        }
+        .sidebar-folder-group {
+            padding: 4px 16px 2px;
+            font-size: 12px;
+            color: var(--text2);
+            font-weight: 500;
+            margin-top: 6px;
+        }
+        .sidebar-item.recommend {
+            opacity: 0.85;
+        }
+        .sidebar-item.recommend:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -336,13 +483,19 @@
     </script>
 
     <div class="top-bar">
-        <a class="back-btn" href="/" title="返回首页">
+        <a class="back-btn" href="{{if .Folder}}/?view=folders&path={{.Folder}}{{else}}/{{end}}" title="{{if .Folder}}返回文件夹{{else}}返回首页{{end}}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
         </a>
         <div style="display:flex;gap:8px;align-items:center">
+            <button class="top-theme-btn" id="shuffle-toggle" title="随机播放">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+            </button>
             <button class="top-theme-btn" id="mute-toggle" title="取消静音">
                 <svg class="icon-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
                 <svg class="icon-unmuted" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+            <button class="top-theme-btn" id="list-toggle" title="视频列表">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             </button>
             <button class="top-theme-btn" id="fullscreen-toggle" title="全屏">
                 <svg class="icon-fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
@@ -357,66 +510,69 @@
 
     <div class="scroll-indicator" id="scroll-indicator"></div>
 
-    <div class="shorts-container" id="shorts-container">
-        {{range .Videos}}
-        <div class="short-item" data-relpath="{{.RelPath}}">
-            <video
-                src="/video?file={{.RelPath}}"
-                loop
-                muted
-                playsinline
-                webkit-playsinline
-                preload="none"
-                poster="/thumb?file={{.RelPath}}"
-            ></video>
-            <div class="play-overlay">
-                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            </div>
-            <div class="bottom-overlay">
-                <div class="controls-row">
-                    <span class="time-display">0:00 / {{if .Duration}}{{.Duration}}{{else}}0:00{{end}}</span>
-                    <span class="controls-spacer"></span>
-                    <button class="ctrl-btn btn-back" title="后退10秒">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><text x="15" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg>
-                    </button>
-                    <button class="ctrl-btn btn-play" title="播放/暂停">
-                        <svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <svg class="ic-pause" style="display:none" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                    </button>
-                    <button class="ctrl-btn btn-fwd" title="快进10秒">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 19l7-7-7-7"/><text x="9" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg>
-                    </button>
-                    <button class="ctrl-btn btn-fs" title="全屏">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                    </button>
-                </div>
-                <div class="progress-wrap"><div class="progress-track"><div class="progress-fill"></div><div class="progress-handle"></div></div></div>
-                <div class="meta-info">
-                    <div class="meta-title">{{.Name}}</div>
-                    {{if .Meta}}
-                        {{if .Meta.Source}}<div class="meta-source">{{.Meta.Source}}</div>{{end}}
-                        {{if .Meta.Description}}<div class="meta-desc">{{.Meta.Description}}</div>{{end}}
-                        {{if .Meta.Keywords}}
-                        <div class="meta-tags">
-                            {{range .Meta.Keywords}}<span class="meta-tag">#{{.}}</span>{{end}}
-                        </div>
-                        {{end}}
-                    {{end}}
-                </div>
-            </div>
+    <div class="loading-more" id="loading-spinner" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;display:none;flex-direction:column;align-items:center;gap:12px;">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="40 20"/></svg>
+        <span style="color:rgba(255,255,255,0.7);font-size:13px">加载中...</span>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+    <div class="shorts-container" id="shorts-container"></div>
+
+    <div class="sidebar-mask" id="sidebar-mask"></div>
+    <div class="sidebar-panel" id="sidebar-panel">
+        <div class="sidebar-header">
+            <h3>视频列表</h3>
+            <button class="sidebar-close" id="sidebar-close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
-        {{end}}
+        <div class="sidebar-list" id="sidebar-list"></div>
     </div>
 
     <script>
     (function() {
         var container = document.getElementById('shorts-container');
         var totalVideos = {{.Total}};
-        var currentPage = 1;
-        var pageSize = 5;
-        var loading = false;
-        var allLoaded = totalVideos <= pageSize;
+        var currentFolder = {{if .Folder}}"{{.Folder}}"{{else}}""{{end}};
+        var allLoaded = false;
         var hasUnmuted = false;
+
+        // ── 已观看记录 ──────────────────────────────────────────────
+        var WATCHED_KEY = 'lc_watched';
+        var watchedSet = {};
+        try { watchedSet = JSON.parse(localStorage.getItem(WATCHED_KEY) || '{}'); } catch(e) {}
+        function markWatched(relPath) {
+            watchedSet[relPath] = Date.now();
+            try { localStorage.setItem(WATCHED_KEY, JSON.stringify(watchedSet)); } catch(e) {}
+        }
+        function isWatched(relPath) { return !!watchedSet[relPath]; }
+
+        // ── 随机播放 ─────────────────────────────────────────────────
+        var shuffleEnabled = localStorage.getItem('lc_shuffle') === '1';
+        function updateShuffleIcon() {
+            var btn = document.getElementById('shuffle-toggle');
+            if (!btn) return;
+            btn.style.color = shuffleEnabled ? '#e11d48' : '';
+            btn.style.background = shuffleEnabled ? 'rgba(225,29,72,0.25)' : '';
+            btn.title = shuffleEnabled ? '取消随机' : '随机播放';
+        }
+        document.getElementById('shuffle-toggle').addEventListener('click', function() {
+            shuffleEnabled = !shuffleEnabled;
+            localStorage.setItem('lc_shuffle', shuffleEnabled ? '1' : '0');
+            updateShuffleIcon();
+            // 重新加载
+            container.innerHTML = '';
+            allLoaded = false;
+            initShorts();
+        });
+        updateShuffleIcon();
+
+        function shuffleArray(arr) {
+            for (var i = arr.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+            }
+        }
 
         // Theme toggle
         document.getElementById('theme-toggle').addEventListener('click', function() {
@@ -524,12 +680,24 @@
                     activeItem = entry.target;
                     positionOverlay(entry.target);
 
+                    // 播放 3 秒后标记为已看
+                    var relPath = entry.target.getAttribute('data-relpath');
+                    if (relPath && !isWatched(relPath)) {
+                        var watchTimer = setTimeout(function() {
+                            if (activeVideo === video && !video.paused) {
+                                markWatched(relPath);
+                            }
+                        }, 3000);
+                        video._watchTimer = watchTimer;
+                    }
+
                     // Manage sources for nearby videos
                     var items = container.querySelectorAll('.short-item');
                     var idx = Array.prototype.indexOf.call(items, entry.target);
                     if (idx >= 0) manageVideoSources(idx);
                 } else {
                     video.pause();
+                    if (video._watchTimer) { clearTimeout(video._watchTimer); video._watchTimer = null; }
                     var fill = entry.target.querySelector('.progress-fill');
                     if (fill) fill.style.width = '0%';
                     if (activeVideo === video) {
@@ -826,77 +994,125 @@
             }
         }
 
-        // Infinite scroll: load more videos
-        function loadMore() {
-            if (loading || allLoaded) return;
-            loading = true;
+        // ── 创建视频 DOM 元素 ─────────────────────────────────────
+        function createVideoDiv(v) {
+            var div = document.createElement('div');
+            div.className = 'short-item';
+            div.setAttribute('data-relpath', v.relPath);
 
-            var nextPage = currentPage + 1;
-            fetch('/api/videos?direct=1&page=' + nextPage + '&size=' + pageSize)
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    if (!data.videos || data.videos.length === 0) {
-                        allLoaded = true;
-                        return;
-                    }
-                    currentPage = nextPage;
-                    if (currentPage >= data.totalPages) {
-                        allLoaded = true;
-                    }
-
-                    data.videos.forEach(function(v) {
-                        var div = document.createElement('div');
-                        div.className = 'short-item';
-                        div.setAttribute('data-relpath', v.relPath);
-
-                        var metaHtml = '';
-                        if (v.meta) {
-                            if (v.meta.source) metaHtml += '<div class="meta-source">' + escapeHtml(v.meta.source) + '</div>';
-                            if (v.meta.description) metaHtml += '<div class="meta-desc">' + escapeHtml(v.meta.description) + '</div>';
-                            if (v.meta.keywords && v.meta.keywords.length) {
-                                metaHtml += '<div class="meta-tags">';
-                                v.meta.keywords.forEach(function(k) {
-                                    metaHtml += '<span class="meta-tag">#' + escapeHtml(k) + '</span>';
-                                });
-                                metaHtml += '</div>';
-                            }
-                        }
-
-                        div.innerHTML =
-                            '<video data-src="/video?file=' + encodeURIComponent(v.relPath) + '" loop ' + (hasUnmuted ? '' : 'muted ') + 'playsinline webkit-playsinline preload="none" poster="/thumb?file=' + encodeURIComponent(v.relPath) + '"></video>' +
-                            '<div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="#fff"/></svg></div>' +
-                            '<div class="bottom-overlay">' +
-                                '<div class="controls-row">' +
-                                    '<span class="time-display">0:00 / ' + escapeHtml(v.duration || '0:00') + '</span>' +
-                                    '<span class="controls-spacer"></span>' +
-                                    '<button class="ctrl-btn btn-back" title="后退10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><text x="15" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
-                                    '<button class="ctrl-btn btn-play" title="播放/暂停"><svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg><svg class="ic-pause" style="display:none" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>' +
-                                    '<button class="ctrl-btn btn-fwd" title="快进10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 19l7-7-7-7"/><text x="9" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
-                                    '<button class="ctrl-btn btn-fs" title="全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>' +
-                                '</div>' +
-                                '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill"></div><div class="progress-handle"></div></div></div>' +
-                                '<div class="meta-info">' +
-                                    '<div class="meta-title">' + escapeHtml(v.name) + '</div>' +
-                                    metaHtml +
-                                '</div>' +
-                            '</div>';
-
-                        container.appendChild(div);
-                        observer.observe(div);
-                        setupClickHandler(div);
+            var metaHtml = '';
+            if (v.meta) {
+                if (v.meta.source) metaHtml += '<div class="meta-source">' + escapeHtml(v.meta.source) + '</div>';
+                if (v.meta.description) metaHtml += '<div class="meta-desc">' + escapeHtml(v.meta.description) + '</div>';
+                if (v.meta.keywords && v.meta.keywords.length) {
+                    metaHtml += '<div class="meta-tags">';
+                    v.meta.keywords.forEach(function(k) {
+                        metaHtml += '<span class="meta-tag">#' + escapeHtml(k) + '</span>';
                     });
-
-                    updateScrollIndicator();
-                })
-                .catch(function(err) {
-                    console.error('Failed to load more videos:', err);
-                })
-                .finally(function() {
-                    loading = false;
-                });
+                    metaHtml += '</div>';
+                }
+            }
+            div.innerHTML =
+                '<video data-src="/video?file=' + encodeURIComponent(v.relPath) + '" loop ' + (hasUnmuted ? '' : 'muted ') + 'playsinline webkit-playsinline preload="none" poster="/thumb?file=' + encodeURIComponent(v.relPath) + '"></video>' +
+                '<div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="#fff"/></svg></div>' +
+                '<div class="bottom-overlay">' +
+                    '<div class="controls-row">' +
+                        '<span class="time-display">0:00 / ' + escapeHtml(v.duration || '0:00') + '</span>' +
+                        '<span class="controls-spacer"></span>' +
+                        '<button class="ctrl-btn btn-back" title="后退10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7"/><text x="15" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
+                        '<button class="ctrl-btn btn-play" title="播放/暂停"><svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg><svg class="ic-pause" style="display:none" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>' +
+                        '<button class="ctrl-btn btn-fwd" title="快进10秒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 19l7-7-7-7"/><text x="9" y="15" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" font-weight="bold">10</text></svg></button>' +
+                        '<button class="ctrl-btn btn-fs" title="全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>' +
+                    '</div>' +
+                    '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill"></div><div class="progress-handle"></div></div></div>' +
+                    '<div class="meta-info">' +
+                        '<div class="meta-title">' + escapeHtml(v.name) + '</div>' +
+                        metaHtml +
+                    '</div>' +
+                '</div>';
+            return div;
         }
 
-        // Throttled scroll handler
+        // ── 加载所有视频并初始化 ──────────────────────────────────
+        function buildApiUrl(page, size) {
+            var url = '/api/videos?direct=1&page=' + page + '&size=' + size;
+            if (currentFolder) url += '&folder=' + encodeURIComponent(currentFolder);
+            return url;
+        }
+
+        function initShorts() {
+            var spinner = document.getElementById('loading-spinner');
+            spinner.style.display = 'flex';
+            allLoaded = false;
+
+            // 分批加载所有视频（最多 2000 条）
+            var allVideos = [];
+            var page = 1;
+            var batchSize = 100;
+
+            function fetchNext() {
+                fetch(buildApiUrl(page, batchSize))
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        allVideos = allVideos.concat(data.videos || []);
+                        if (page < data.totalPages && allVideos.length < 2000) {
+                            page++;
+                            fetchNext();
+                        } else {
+                            onAllLoaded(allVideos);
+                        }
+                    })
+                    .catch(function() { onAllLoaded(allVideos); });
+            }
+            fetchNext();
+        }
+
+        function onAllLoaded(allVideos) {
+            // 分离：历史（已看）和队列（未看）
+            var history = [];
+            var queue = [];
+            allVideos.forEach(function(v) {
+                if (isWatched(v.relPath)) history.push(v);
+                else queue.push(v);
+            });
+
+            // 若全部看过，重置为全新播放
+            if (queue.length === 0 && history.length > 0) {
+                queue = history.slice();
+                history = [];
+            }
+
+            // 历史：按观看时间升序（最早看的在最上面）
+            history.sort(function(a, b) { return watchedSet[a.relPath] - watchedSet[b.relPath]; });
+
+            // 队列：可随机
+            if (shuffleEnabled) shuffleArray(queue);
+
+            // 保存给侧边栏使用
+            sidebarVideos = history.concat(queue);
+
+            // 渲染历史（上方），队列（下方）
+            sidebarVideos.forEach(function(v) {
+                var div = createVideoDiv(v);
+                container.appendChild(div);
+            });
+
+            var historyCount = history.length;
+
+            // 初始化 observer 和事件
+            initItems();
+
+            // 跳到第一个未看的视频
+            if (historyCount > 0) {
+                container.scrollTop = historyCount * window.innerHeight;
+            }
+
+            allLoaded = true;
+            document.getElementById('loading-spinner').style.display = 'none';
+            updateScrollIndicator();
+        }
+
+        // Throttled scroll handler（已全部加载，无需再 loadMore）
         var scrollTick = false;
         container.addEventListener('scroll', function() {
             if (scrollTick) return;
@@ -904,14 +1120,6 @@
             requestAnimationFrame(function() {
                 scrollTick = false;
                 highlightCurrentDot();
-                var items = container.querySelectorAll('.short-item');
-                if (items.length === 0) return;
-                var scrollTop = container.scrollTop;
-                var vh = window.innerHeight;
-                var currentIdx = Math.round(scrollTop / vh);
-                if (currentIdx >= items.length - 2) {
-                    loadMore();
-                }
             });
         });
 
@@ -1030,7 +1238,168 @@
             resizeTimer = setTimeout(repositionAllOverlays, 100);
         });
 
-        initItems();
+        // ── 侧边栏视频列表 ─────────────────────────────────────────
+        var sidebarMask = document.getElementById('sidebar-mask');
+        var sidebarPanel = document.getElementById('sidebar-panel');
+        var sidebarList = document.getElementById('sidebar-list');
+        var sidebarVideos = []; // populated in onAllLoaded
+        var recommendVideos = []; // other-folder videos, loaded lazily
+
+        function openSidebar() {
+            renderSidebarList();
+            if (currentFolder && recommendVideos.length === 0) {
+                loadRecommendations();
+            }
+            sidebarMask.classList.add('open');
+            sidebarPanel.classList.add('open');
+        }
+
+        function closeSidebar() {
+            sidebarMask.classList.remove('open');
+            sidebarPanel.classList.remove('open');
+        }
+
+        function isSidebarOpen() {
+            return sidebarPanel.classList.contains('open');
+        }
+
+        function renderSidebarItem(v, isActive, extraClass) {
+            return '<div class="sidebar-item' + (isActive ? ' active' : '') + (extraClass ? ' ' + extraClass : '') + '" data-relpath="' + escapeHtml(v.relPath) + '">' +
+                '<img class="sidebar-thumb" src="/thumb?file=' + encodeURIComponent(v.relPath) + '" loading="lazy" alt="">' +
+                '<div class="sidebar-info">' +
+                    '<div class="sidebar-title">' + escapeHtml(v.name) + '</div>' +
+                    (v.duration ? '<div class="sidebar-duration">' + escapeHtml(v.duration) + '</div>' : '') +
+                '</div>' +
+            '</div>';
+        }
+
+        function renderSidebarList() {
+            var currentRelPath = activeItem ? activeItem.getAttribute('data-relpath') : '';
+            var html = '';
+            sidebarVideos.forEach(function(v) {
+                html += renderSidebarItem(v, v.relPath === currentRelPath, '');
+            });
+
+            // Recommendations from other folders
+            if (currentFolder && recommendVideos.length > 0) {
+                html += '<div class="sidebar-section">其他推荐</div>';
+                var grouped = {};
+                var folderOrder = [];
+                recommendVideos.forEach(function(v) {
+                    var folder = v.relPath.lastIndexOf('/') > 0 ? v.relPath.substring(0, v.relPath.lastIndexOf('/')) : '';
+                    if (!grouped[folder]) { grouped[folder] = []; folderOrder.push(folder); }
+                    grouped[folder].push(v);
+                });
+                folderOrder.forEach(function(folder) {
+                    var displayName = folder || '根目录';
+                    html += '<div class="sidebar-folder-group">' + escapeHtml(displayName) + '</div>';
+                    grouped[folder].forEach(function(v) {
+                        html += renderSidebarItem(v, false, 'recommend');
+                    });
+                });
+            }
+
+            sidebarList.innerHTML = html;
+
+            // Scroll to active item
+            requestAnimationFrame(function() {
+                var activeEl = sidebarList.querySelector('.sidebar-item.active');
+                if (activeEl) {
+                    activeEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+                }
+            });
+        }
+
+        function loadRecommendations() {
+            fetch('/api/videos?direct=1&page=1&size=100')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    var videos = data.videos || [];
+                    var currentPaths = {};
+                    sidebarVideos.forEach(function(v) { currentPaths[v.relPath] = true; });
+                    recommendVideos = videos.filter(function(v) { return !currentPaths[v.relPath]; });
+                    renderSidebarList();
+                })
+                .catch(function() {});
+        }
+
+        // Click sidebar item → jump to video or navigate to folder
+        sidebarList.addEventListener('click', function(e) {
+            var item = e.target.closest('.sidebar-item');
+            if (!item) return;
+            var relPath = item.getAttribute('data-relpath');
+
+            // Recommendation item → navigate to that folder's shorts
+            if (item.classList.contains('recommend')) {
+                var folder = relPath.lastIndexOf('/') > 0 ? relPath.substring(0, relPath.lastIndexOf('/')) : '';
+                window.location.href = '/shorts' + (folder ? '?folder=' + encodeURIComponent(folder) : '');
+                return;
+            }
+
+            // Current folder item → scroll to it
+            var targets = container.querySelectorAll('.short-item');
+            for (var i = 0; i < targets.length; i++) {
+                if (targets[i].getAttribute('data-relpath') === relPath) {
+                    closeSidebar();
+                    container.scrollTop = targets[i].offsetTop;
+                    break;
+                }
+            }
+        });
+
+        // Close sidebar via mask click or close button
+        sidebarMask.addEventListener('click', closeSidebar);
+        document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+
+        // List toggle button (top bar)
+        document.getElementById('list-toggle').addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (isSidebarOpen()) closeSidebar();
+            else openSidebar();
+        });
+
+        // ── 水平滑动手势检测（左滑打开 / 右滑关闭） ─────────────────
+        var swipeStartX = 0;
+        var swipeStartY = 0;
+        var swipeTracking = false;
+
+        container.addEventListener('touchstart', function(e) {
+            if (e.target.closest('.progress-wrap') || e.target.closest('.ctrl-btn')) return;
+            swipeStartX = e.touches[0].clientX;
+            swipeStartY = e.touches[0].clientY;
+            swipeTracking = true;
+        }, { passive: true });
+
+        container.addEventListener('touchend', function(e) {
+            if (!swipeTracking) return;
+            swipeTracking = false;
+            var dx = e.changedTouches[0].clientX - swipeStartX;
+            var dy = e.changedTouches[0].clientY - swipeStartY;
+            var absDx = Math.abs(dx);
+            var absDy = Math.abs(dy);
+            if (absDx > 60 && absDx > absDy) {
+                if (dx < 0 && !isSidebarOpen()) {
+                    // Swipe left → open
+                    openSidebar();
+                }
+            }
+        }, { passive: true });
+
+        // Swipe right on sidebar panel to close
+        sidebarPanel.addEventListener('touchstart', function(e) {
+            swipeStartX = e.touches[0].clientX;
+            swipeStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        sidebarPanel.addEventListener('touchend', function(e) {
+            var dx = e.changedTouches[0].clientX - swipeStartX;
+            var dy = e.changedTouches[0].clientY - swipeStartY;
+            if (dx > 60 && Math.abs(dx) > Math.abs(dy)) {
+                closeSidebar();
+            }
+        }, { passive: true });
+
+        initShorts();
     })();
     </script>
 </body>

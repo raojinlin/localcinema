@@ -5,13 +5,20 @@ import (
 	"encoding/json"
 	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type BreadcrumbItem struct {
+	Name string
+	Path string // 空字符串表示根目录
+}
 
 type IndexData struct {
 	Videos     []VideoFile
@@ -19,6 +26,22 @@ type IndexData struct {
 	PageSize   int
 	Total      int
 	TotalPages int
+	Folder     string
+	Breadcrumb []BreadcrumbItem
+}
+
+type APIFolder struct {
+	Name        string `json:"name"`
+	RelPath     string `json:"relPath"`
+	Count       int    `json:"count"`       // 该目录下（含子目录）所有视频数
+	DirectCount int    `json:"directCount"` // 可直接播放的视频数
+	HasChildren bool   `json:"hasChildren"` // 是否有子目录
+}
+
+type APIFolderResponse struct {
+	Folders         []APIFolder `json:"folders"`
+	Videos          []APIVideo  `json:"videos"`          // 直属当前目录的视频
+	TotalDirectPlay int         `json:"totalDirectPlay"` // 本层+子目录可直接播放的总数
 }
 
 type APIVideoResponse struct {
@@ -70,6 +93,7 @@ func (s *Server) ListenAndServe(addr string) error {
 	mux.HandleFunc("/thumb", s.handleThumb)
 	mux.HandleFunc("/shorts", s.handleShorts)
 	mux.HandleFunc("/api/videos", s.handleAPIVideos)
+	mux.HandleFunc("/api/folders", s.handleAPIFolders)
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
 	return http.ListenAndServe(addr, logMiddleware(mux))
 }
@@ -143,6 +167,27 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	folder := r.URL.Query().Get("folder")
+	var breadcrumb []BreadcrumbItem
+	if folder != "" {
+		var filtered []VideoFile
+		for _, v := range videos {
+			dir := videoFolder(v.RelPath)
+			if dir == folder || strings.HasPrefix(dir, folder+"/") {
+				filtered = append(filtered, v)
+			}
+		}
+		videos = filtered
+
+		parts := strings.Split(folder, "/")
+		for i, part := range parts {
+			breadcrumb = append(breadcrumb, BreadcrumbItem{
+				Name: part,
+				Path: strings.Join(parts[:i+1], "/"),
+			})
+		}
+	}
+
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
 	if size <= 0 {
@@ -172,6 +217,8 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		PageSize:   size,
 		Total:      total,
 		TotalPages: totalPages,
+		Folder:     folder,
+		Breadcrumb: breadcrumb,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -195,31 +242,40 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 	fullPath := filepath.Join(s.videoDir, file)
 	useHLS := needsTranscode(fullPath) || needsStreamingMp4(fullPath)
 
-	// 获取所有视频用于"相关视频"展示
+	// 获取所有视频用于"相关视频"展示，同文件夹优先
 	allVideos, _ := ScanVideos(s.videoDir)
-	var related []VideoFile
+	currentDir := videoFolder(file)
+	var sameFolder, otherFolder []VideoFile
 	for _, v := range allVideos {
-		if v.RelPath != file {
-			related = append(related, v)
+		if v.RelPath == file {
+			continue
+		}
+		if videoFolder(v.RelPath) == currentDir {
+			sameFolder = append(sameFolder, v)
+		} else {
+			otherFolder = append(otherFolder, v)
 		}
 	}
-
 	name := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	if meta := readDirMetadata(filepath.Dir(fullPath)); meta != nil && meta.Title != "" {
 		name = meta.Title
 	}
 
 	data := struct {
-		Name    string
-		File    string
-		UseHLS  bool
-		HLSKey  string
-		Related []VideoFile
+		Name        string
+		File        string
+		UseHLS      bool
+		HLSKey      string
+		SameFolder  []VideoFile
+		OtherFolder []VideoFile
+		FolderPath  string
 	}{
-		Name:    name,
-		File:    file,
-		UseHLS:  useHLS,
-		Related: related,
+		Name:        name,
+		File:        file,
+		UseHLS:      useHLS,
+		SameFolder:  sameFolder,
+		OtherFolder: otherFolder,
+		FolderPath:  currentDir,
 	}
 
 	if useHLS {
@@ -332,6 +388,98 @@ func (s *Server) handleHLS(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filePath)
 }
 
+func (s *Server) handleAPIFolders(w http.ResponseWriter, r *http.Request) {
+	parent := r.URL.Query().Get("parent") // "" 表示根目录
+
+	videos, err := ScanVideos(s.videoDir)
+	if err != nil {
+		http.Error(w, "扫描视频目录失败", http.StatusInternalServerError)
+		return
+	}
+
+	folderMap := make(map[string]*APIFolder)
+	var folderOrder []string
+	var directVideos []VideoFile
+
+	for _, v := range videos {
+		dir := videoFolder(v.RelPath)
+
+		var rel string
+		if parent == "" {
+			rel = dir
+		} else {
+			if dir == parent {
+				directVideos = append(directVideos, v)
+				continue
+			}
+			if !strings.HasPrefix(dir, parent+"/") {
+				continue
+			}
+			rel = strings.TrimPrefix(dir, parent+"/")
+		}
+
+		if rel == "" {
+			// 根目录直属视频
+			directVideos = append(directVideos, v)
+			continue
+		}
+
+		parts := strings.SplitN(rel, "/", 2)
+		childName := parts[0]
+		childPath := childName
+		if parent != "" {
+			childPath = parent + "/" + childName
+		}
+
+		if _, ok := folderMap[childName]; !ok {
+			folderMap[childName] = &APIFolder{Name: childName, RelPath: childPath}
+			folderOrder = append(folderOrder, childName)
+		}
+		entry := folderMap[childName]
+		entry.Count++
+		if v.DirectPlay {
+			entry.DirectCount++
+		}
+		if len(parts) > 1 {
+			entry.HasChildren = true
+		}
+	}
+
+	sort.Strings(folderOrder)
+	folders := make([]APIFolder, 0, len(folderOrder))
+	totalDirectPlay := 0
+	for _, name := range folderOrder {
+		f := folderMap[name]
+		folders = append(folders, *f)
+		totalDirectPlay += f.DirectCount
+	}
+
+	apiVids := make([]APIVideo, 0, len(directVideos))
+	for _, v := range directVideos {
+		if v.DirectPlay {
+			totalDirectPlay++
+		}
+		apiVids = append(apiVids, APIVideo{
+			Name:        v.Name,
+			RelPath:     v.RelPath,
+			Size:        v.Size,
+			SizeStr:     v.SizeStr,
+			Duration:    v.Duration,
+			DurationSec: v.DurationSec,
+			DirectPlay:  v.DirectPlay,
+			Meta:        v.Meta,
+		})
+	}
+
+	resp := APIFolderResponse{
+		Folders:         folders,
+		Videos:          apiVids,
+		TotalDirectPlay: totalDirectPlay,
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(resp)
+}
+
 // isValidPath 校验路径安全性，防止目录穿越
 func (s *Server) isValidPath(relPath string) bool {
 	if relPath == "" {
@@ -354,31 +502,33 @@ func (s *Server) isValidPath(relPath string) bool {
 }
 
 func (s *Server) handleShorts(w http.ResponseWriter, r *http.Request) {
+	folder := r.URL.Query().Get("folder")
 	videos, err := ScanVideos(s.videoDir)
 	if err != nil {
 		http.Error(w, "扫描视频目录失败", http.StatusInternalServerError)
 		return
 	}
 
-	var direct []VideoFile
+	total := 0
 	for _, v := range videos {
-		if v.DirectPlay {
-			direct = append(direct, v)
+		if !v.DirectPlay {
+			continue
 		}
-	}
-
-	// Initial page: first 5 direct-play videos
-	limit := 5
-	if len(direct) < limit {
-		limit = len(direct)
+		if folder != "" {
+			dir := videoFolder(v.RelPath)
+			if dir != folder && !strings.HasPrefix(dir, folder+"/") {
+				continue
+			}
+		}
+		total++
 	}
 
 	data := struct {
-		Videos []VideoFile
 		Total  int
+		Folder string
 	}{
-		Videos: direct[:limit],
-		Total:  len(direct),
+		Total:  total,
+		Folder: folder,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -394,6 +544,18 @@ func (s *Server) handleAPIVideos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filter by folder
+	if folder := r.URL.Query().Get("folder"); folder != "" {
+		var filtered []VideoFile
+		for _, v := range videos {
+			dir := videoFolder(v.RelPath)
+			if dir == folder || strings.HasPrefix(dir, folder+"/") {
+				filtered = append(filtered, v)
+			}
+		}
+		videos = filtered
+	}
+
 	// Filter direct-play only if requested
 	if r.URL.Query().Get("direct") == "1" {
 		var filtered []VideoFile
@@ -403,6 +565,11 @@ func (s *Server) handleAPIVideos(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		videos = filtered
+	}
+
+	// Shuffle
+	if r.URL.Query().Get("shuffle") == "1" {
+		rand.Shuffle(len(videos), func(i, j int) { videos[i], videos[j] = videos[j], videos[i] })
 	}
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
