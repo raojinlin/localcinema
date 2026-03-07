@@ -1210,7 +1210,6 @@
             enterFullscreen(getActiveVideo());
         }
         document.addEventListener('click', tryFullscreen, { once: true });
-        document.addEventListener('touchstart', tryFullscreen, { once: true });
         container.addEventListener('scroll', tryFullscreen, { once: true });
 
         // Manual fullscreen toggle button (top bar)
