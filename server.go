@@ -256,26 +256,26 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 			otherFolder = append(otherFolder, v)
 		}
 	}
-	related := append(sameFolder, otherFolder...)
-
 	name := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	if meta := readDirMetadata(filepath.Dir(fullPath)); meta != nil && meta.Title != "" {
 		name = meta.Title
 	}
 
 	data := struct {
-		Name       string
-		File       string
-		UseHLS     bool
-		HLSKey     string
-		Related    []VideoFile
-		FolderPath string
+		Name        string
+		File        string
+		UseHLS      bool
+		HLSKey      string
+		SameFolder  []VideoFile
+		OtherFolder []VideoFile
+		FolderPath  string
 	}{
-		Name:       name,
-		File:       file,
-		UseHLS:     useHLS,
-		Related:    related,
-		FolderPath: currentDir,
+		Name:        name,
+		File:        file,
+		UseHLS:      useHLS,
+		SameFolder:  sameFolder,
+		OtherFolder: otherFolder,
+		FolderPath:  currentDir,
 	}
 
 	if useHLS {

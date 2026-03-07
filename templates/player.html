@@ -191,11 +191,16 @@
             color: var(--text3);
             margin-top: 4px;
         }
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
         .theme-btn {
             background: none;
             border: none;
             color: var(--text2);
-            margin-left: auto;
             padding: 4px;
             cursor: pointer;
             display: flex;
@@ -243,10 +248,15 @@
             <img class="logo" src="/static/logo.svg" alt="">
         </a>
         <span class="title">{{.Name}}</span>
-        <button class="theme-btn" id="theme-toggle" title="切换主题">
-            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-        </button>
+        <div class="topbar-actions">
+            <a class="theme-btn" href="/shorts{{if .FolderPath}}?folder={{.FolderPath}}{{end}}" title="短视频模式">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+            </a>
+            <button class="theme-btn" id="theme-toggle" title="切换主题">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            </button>
+        </div>
     </div>
     <div class="player-wrap">
         <video id="player" controls autoplay playsinline>
@@ -262,10 +272,27 @@
         <button class="dismiss" id="resume-dismiss">忽略</button>
     </div>
 
-    {{if .Related}}
-    <div class="section-title">相关视频</div>
+    {{if .SameFolder}}
+    <div class="section-title">同目录视频</div>
     <div class="grid">
-        {{range .Related}}
+        {{range .SameFolder}}
+        <a class="item" href="/play?file={{.RelPath}}">
+            <div class="thumb-wrap">
+                <img class="thumb" src="/thumb?file={{.RelPath}}" loading="lazy" alt="">
+                {{if .Duration}}<span class="duration">{{.Duration}}</span>{{end}}
+            </div>
+            <div class="info">
+                <div class="name">{{.Name}}</div>
+                <div class="size">{{.SizeStr}}</div>
+            </div>
+        </a>
+        {{end}}
+    </div>
+    {{end}}
+    {{if .OtherFolder}}
+    <div class="section-title">其他视频</div>
+    <div class="grid">
+        {{range .OtherFolder}}
         <a class="item" href="/play?file={{.RelPath}}">
             <div class="thumb-wrap">
                 <img class="thumb" src="/thumb?file={{.RelPath}}" loading="lazy" alt="">

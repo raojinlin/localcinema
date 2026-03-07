@@ -582,8 +582,29 @@
                 document.querySelector('.container').appendChild(folderListEl);
             }
             folderListEl.style.display = '';
-            folderNavStack = [];
-            renderFolderLevel('');
+            // 从 URL 恢复文件夹路径
+            var urlPath = new URLSearchParams(window.location.search).get('path') || '';
+            if (urlPath) {
+                folderNavStack = [];
+                var parts = urlPath.split('/');
+                for (var i = 0; i < parts.length; i++) {
+                    folderNavStack.push({relPath: parts.slice(0, i + 1).join('/'), name: parts[i]});
+                }
+                renderFolderLevel(urlPath);
+            } else {
+                folderNavStack = [];
+                renderFolderLevel('');
+            }
+        }
+
+        function updateFolderUrl(path) {
+            var params = new URLSearchParams(window.location.search);
+            if (path) { params.set('path', path); } else { params.delete('path'); }
+            params.set('view', 'folders');
+            var newUrl = window.location.pathname + '?' + params.toString();
+            if (newUrl !== window.location.pathname + window.location.search) {
+                history.pushState({folderPath: path}, '', newUrl);
+            }
         }
 
         function renderFolderLevel(parent) {
@@ -616,8 +637,8 @@
                 crumb.querySelectorAll('.fb-crumb-btn').forEach(function(el) {
                     el.addEventListener('click', function() {
                         var idx = parseInt(el.getAttribute('data-idx'));
-                        if (idx === -1) { folderNavStack = []; renderFolderLevel(''); }
-                        else { folderNavStack = folderNavStack.slice(0, idx + 1); renderFolderLevel(folderNavStack[idx].relPath); }
+                        if (idx === -1) { folderNavStack = []; updateFolderUrl(''); renderFolderLevel(''); }
+                        else { folderNavStack = folderNavStack.slice(0, idx + 1); updateFolderUrl(folderNavStack[idx].relPath); renderFolderLevel(folderNavStack[idx].relPath); }
                     });
                 });
                 folderListEl.appendChild(crumb);
@@ -654,6 +675,7 @@
                     '<div class="fb-chev">' + CHEV + '</div>';
                 row.addEventListener('click', function() {
                     folderNavStack.push({relPath: f.relPath, name: f.name});
+                    updateFolderUrl(f.relPath);
                     renderFolderLevel(f.relPath);
                 });
                 folderListEl.appendChild(row);
@@ -681,9 +703,35 @@
             return d.innerHTML;
         }
 
+        // URL 中有 view=folders 时，优先使用文件夹视图
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('view') === 'folders' && !inFolderCtx) {
+            saved = 'folders';
+        }
+
         setView(saved);
         btns.forEach(function(btn) {
-            btn.addEventListener('click', function() { setView(this.getAttribute('data-view')); });
+            btn.addEventListener('click', function() {
+                var mode = this.getAttribute('data-view');
+                // 切换到非文件夹视图时清除 URL 中的文件夹参数
+                if (mode !== 'folders') {
+                    var p = new URLSearchParams(window.location.search);
+                    p.delete('view'); p.delete('path');
+                    var clean = p.toString();
+                    history.replaceState(null, '', clean ? window.location.pathname + '?' + clean : window.location.pathname);
+                } else {
+                    updateFolderUrl('');
+                }
+                setView(mode);
+            });
+        });
+
+        // 浏览器前进/后退
+        window.addEventListener('popstate', function() {
+            var p = new URLSearchParams(window.location.search);
+            if (p.get('view') === 'folders') {
+                setView('folders');
+            }
         });
         // 主题切换
         document.getElementById('theme-toggle').addEventListener('click', function() {
